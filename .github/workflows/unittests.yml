@@ -35,6 +35,8 @@ jobs:
           perl Makefile.PL
           perl -MFile::Which -MData::Dumper -MSpreadsheet::XLSX -MArray::IntSpan -e 'print Dumper \%INC'
           make
+          echo; echo; echo;
+          cat MYMETA.json
       - id: prove-lv-t
         run: |
           export PERL5LIB=$PERL5LIB:$HOME/lib/perl5
