@@ -3,6 +3,7 @@
 use warnings;
 use strict;
 use Data::Dumper;
+$Data::Dumper::Sortkeys = 1;
 use Getopt::Long;
 use File::Basename qw/basename/;
 
@@ -15,7 +16,7 @@ use Spreadsheet::XLSX;
 #use Excel::Writer::XLSX;
 use Array::IntSpan;
 
-our $VERSION = '3.2.1';
+our $VERSION = '3.3.0';
 
 # Expected peaks per serotype
 my $peakRanges = Array::IntSpan->new();
@@ -71,16 +72,21 @@ sub main{
   for my $spreadsheet(@ARGV){
     my $tsv = readRawSpreadsheet($spreadsheet, $settings);
     
-    while(my($plate, $plateEntries) = each(%$tsv)){
+    for my $plate(sort keys(%$tsv)){
+      my $plateEntries = $$tsv{$plate};
       # Loop through the samples but sort them alphabetically
       for my $sample(sort {$a cmp $b} keys(%$plateEntries)){
         my $sampleInfo = $$plateEntries{$sample};
         
         # How many acquisitions are there?
-        # Each peak will have the same number of acquisitions,
-        # and so just get that info from the first peak found.
-        my $firstPeak = (keys(%$sampleInfo))[0];
-        my $numAcquisitions = scalar(@{ $$sampleInfo{$firstPeak} });
+        #my $numAcquisitions = scalar(@{ $$sampleInfo{$firstPeak} });
+        my $numAcquisitions = 0;
+        for my $peak(sort keys(%$sampleInfo)){
+          my $thisPeakAcquisitionCount = scalar(@{ $$sampleInfo{$peak} });
+          if($thisPeakAcquisitionCount > $numAcquisitions){
+            $numAcquisitions = $thisPeakAcquisitionCount;
+          }
+        }
         
         # the sample has multiple acquisitions in the data structure,
         # so there will be one row printed per acquisition.
@@ -109,6 +115,8 @@ sub readRawSpreadsheet{
   
   # https://metacpan.org/pod/Spreadsheet::XLSX
   my $excel = Spreadsheet::XLSX->new($spreadsheet);
+  # Must remove randomness
+  $$excel{Worksheet} = [sort {$$a{path} cmp $$b{path}} @{$$excel{Worksheet}}];
 
   my %peakInfo;
 
@@ -191,7 +199,7 @@ sub readRawSpreadsheet{
       push(@{ $peakInfo{$sample}{$plate} }, \%tsv);
     }
   }
-  #die Dumper \%peakInfo;
+  #print Dumper \%peakInfo;exit 0;
   #die Dumper keys(%{ $peakInfo{157016} });
 
   # Turn this into a 25+ column format with each peak info shown on each plate/sample combo line
@@ -210,6 +218,7 @@ sub readRawSpreadsheet{
           # Find which type this belongs to based on ranges of m/z
           my $type = $peakRanges->lookup($$peak{'m/z'});
           # If not found in the ranges, UNDEFINED
+          next if(!defined($type));
           $type||="UNDEFINED_PEAK";
 
           # Record this peak under the right type
@@ -232,7 +241,17 @@ sub readRawSpreadsheet{
       #die Dumper \%finalTsv;
     }
   }
-  #die Dumper \%finalTsv;
+
+  # Keep the data structure stable by sorting
+  while(my($plate, $plateInfo) = each(%finalTsv)){
+    while(my($sample, $sampleInfo) = each(%$plateInfo)){
+      while(my($type, $serotypeInfo) = each(%$sampleInfo)){
+        $finalTsv{$plate}{$sample}{$type} =
+            [sort {$$b{peak} <=> $$a{peak} || $$a{SN} <=> $$b{SN}} @{ $finalTsv{$plate}{$sample}{$type} }];
+      }
+    }
+  }
+  #print Dumper \%finalTsv; exit 0;
 
   return \%finalTsv;
 }

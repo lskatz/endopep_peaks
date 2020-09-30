@@ -6,6 +6,7 @@ use lib './lib';
 use File::Basename qw/dirname basename/;
 use File::Which qw/which/;
 use Getopt::Long qw/GetOptions/;
+use Data::Dumper;
 
 use Test::More tests => 1;
 
@@ -59,7 +60,7 @@ sub readTsv{
     # The special key for these spreadsheets is plate + isolate
     # Use a triple tilde because it probably is not in any
     # sample name or plate name.
-    my $key = join("~~~", $F{plate}, $F{sample});
+    my $key = join("~~~", $F{plate}, $F{sample}, $F{acquisition});
 
     $tsv{$key} = \%F;
   }
