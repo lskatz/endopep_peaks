@@ -16,7 +16,7 @@ use Spreadsheet::XLSX;
 #use Excel::Writer::XLSX;
 use Array::IntSpan;
 
-our $VERSION = '3.3.0';
+our $VERSION = '3.4.0';
 
 # Expected peaks per serotype
 my $peakRanges = Array::IntSpan->new();
@@ -64,7 +64,7 @@ sub main{
   usage() if($$settings{help} || !@ARGV);
 
   # print off the output header
-  print "plate\tsample\tacquisition\t";
+  print "plate\tsample\tinferred_type\tacquisition\t";
   print join("\t",@typingHeader);
   print "\n";
 
@@ -91,7 +91,9 @@ sub main{
         # the sample has multiple acquisitions in the data structure,
         # so there will be one row printed per acquisition.
         for(my $acquisition=0; $acquisition < $numAcquisitions; $acquisition++){
-          print join("\t", $plate, $sample, ($acquisition+1));
+          my $inferredTypeArr = inferType($sampleInfo, $settings);
+          my $inferredTypes   = join(",", sort @$inferredTypeArr);
+          print join("\t", $plate, $sample, $inferredTypes, ($acquisition+1));
           # Increment by two because the header has both the peak and peak_SN keys
           for(my $i=0;$i<@typingHeader;$i+=2){
             # Get the peaks hash (signal-to-noise and peak)
@@ -254,6 +256,51 @@ sub readRawSpreadsheet{
   #print Dumper \%finalTsv; exit 0;
 
   return \%finalTsv;
+}
+
+# A sample is positive for a serotype if at least one of the peaks for cleaved products of that serotype is present, with a S/N >10.
+# The settings on the Bruker only allow the program to call peaks if the S/N is >10, so everything we see included in the raw Excel spreadsheets should have S/N >10.
+# And yes, there could be multiple inferences.
+sub inferType{
+  my($peaks, $settings) = @_;
+
+  my %type;
+
+  for my $peak(sort keys(%$peaks)){
+    next if($peak !~ /cleavage/i);
+    # All acquisitions must agree with each other and so this array
+    # of types will be checked for consistency.
+    my @acquisitionInferrence = ();
+    for my $peakInfo(@{ $$peaks{$peak} }){
+      # Results shouldn't even get to this point if Signal to noise is less
+      # than 10, but just to be sure.
+      next if($$peakInfo{SN} <= 10);
+      # Can't determine serotype if this peak doesn't even fall in the 
+      # right range for a serotype.
+      next if(!$$peakInfo{serotype});
+      
+      push(@acquisitionInferrence, $$peakInfo{serotype});
+      $type{ $$peakInfo{serotype} }++;
+    }
+    # If no serotypes were inferred with this set of peaks, then
+    # don't try to make an inferrence.
+    #next if(!@acquisitionInferrence);
+
+    # Check for consistency across all acquisitions.
+    #my $inferredType = shift(@acquisitionInferrence);
+    #for my $otherAcquisitionType(@acquisitionInferrence){
+    #  # Make the comparison case-insensitive just in case
+    #  if(lc($inferredType) ne lc($otherAcquisitionType)){
+    #    $inferredType = "inconclusive(".join(",",$inferredType,@acquisitionInferrence).")";
+    #    last;
+    #  }
+    #}
+
+    # Record the serotype
+    #$type{ $inferredType }++;
+  }
+
+  return [keys(%type)];
 }
 
 sub version{

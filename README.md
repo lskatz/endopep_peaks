@@ -31,3 +31,19 @@ Version
     
     parseBruker.pl --version
 
+## Output
+
+The spreadsheet will have a header row of
+
+* plate
+* sample
+* inferred\_type (version >= 3.4)
+* acquisition
+* A\_cleavage\_1
+* SN\_A\_cleavage\_1
+* etc for each cleavage site and intact
+
+and rows for each acquisition.
+
+Values will have a dot `.` if the values are unknown.
+
