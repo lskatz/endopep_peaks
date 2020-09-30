@@ -13,7 +13,7 @@ my $preop = 'true;';
   #'perldoc -uT $(VERSION_FROM) | tee $(DISTVNAME)/README.pod > README.pod;' .
   #'pod2text README.pod | tee $(DISTVNAME)/README > README';
 
-WriteMakefile(
+WriteMakefile1(
   NAME         => 'Endopep_peaks',
   VERSION_FROM => "scripts/parseBruker.pl",
   AUTHOR => q{Lee S. Katz <gzu2@cdc.gov>},
