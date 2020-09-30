@@ -38,6 +38,7 @@ jobs:
           perl Makefile.PL
           perl -MFile::Which -MData::Dumper -MSpreadsheet::XLSX -MArray::IntSpan -e 'print Dumper \%INC'
           make
+          echo "DEBUG: PERL5LIB: $PERL5LIB"
       - name: check-mymeta
         run: |
           echo "MYMETA.json";
