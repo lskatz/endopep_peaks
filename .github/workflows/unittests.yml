@@ -1,3 +1,5 @@
+env:
+  PERL5LIB: ${{HOME}}/lib/perl5
 on:
   push:
     branches:
@@ -28,13 +30,13 @@ jobs:
         run:  env
       - name: install-makemaker
         run: |
-          export PERL5LIB=$PERL5LIB:$HOME/lib/perl5
+          #export PERL5LIB=$PERL5LIB:$HOME/lib/perl5
           which cpanm
           cpanm --verbose --notest --force ExtUtils::MakeMaker
           cpanm -l $HOME --installdeps --verbose --notest --force .
       - name: perl-dependencies
         run:  |
-          export PERL5LIB=$PERL5LIB:$HOME/lib/perl5
+          #export PERL5LIB=$PERL5LIB:$HOME/lib/perl5
           perl Makefile.PL
           perl -MFile::Which -MData::Dumper -MSpreadsheet::XLSX -MArray::IntSpan -e 'print Dumper \%INC'
           make
@@ -45,5 +47,5 @@ jobs:
           cat MYMETA.json
       - id: prove-lv-t
         run: |
-          export PERL5LIB=$PERL5LIB:$HOME/lib/perl5
+          #export PERL5LIB=$PERL5LIB:$HOME/lib/perl5
           prove -lv t
