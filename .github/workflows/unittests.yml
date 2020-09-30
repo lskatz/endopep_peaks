@@ -1,5 +1,5 @@
 env:
-  PERL5LIB: ${{HOME}}/lib/perl5
+  PERL5LIB: ${{ HOME }}/lib/perl5
 on:
   push:
     branches:
