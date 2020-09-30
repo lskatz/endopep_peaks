@@ -23,25 +23,15 @@ jobs:
         with:
           perl-version: ${{ matrix.perl }}
       - run: perl -V
-      - run: env
-#      - id:  install-cpanm
-#        run: |
-#          curl -L https://cpanmin.us | perl - App::cpanminus
-#          # installs to something like /home/runner/.cpanm/work/1600962463.2588/App-cpanminus-1.7044/bin/cpanm
-#          which cpanm
-#          CPANMPATH=$(which cpanm)
-#          find $HOME/.cpanm -type f -executable -name cpanm | xargs -P 1 -n 1 bash -c ' echo "dir of $0" >&2; dirname $0 ' | tee $HOME/CPANMDIRs.txt
-#          for path in $(cat $HOME/CPANMDIRs.txt); do echo "Added $path"; export PATH=$path:$PATH; done
-#          echo $PATH
-#          which cpanm
-      - id:  cpanm
-        run: |
+      - name: env
+        run:  env
+      - name: perl-dependencies
+        run:  |
           export PERL5LIB=$PERL5LIB:$HOME/lib/perl5
           which cpanm
+          cpanm --verbose --notest --force ExtUtils::MakeMaker
           cpanm -l $HOME --installdeps --verbose --notest --force .
-          #cpanm -l $HOME File::Which --force --notest --verbose
-          #cpanm -l $HOME Spreadsheet::XLSX --force --notest --verbose  
-          #cpanm -l $HOME Array::IntSpan --force --notest --verbose
+          perl Makefile.PL
           perl -MFile::Which -MData::Dumper -MSpreadsheet::XLSX -MArray::IntSpan -e 'print Dumper \%INC'
       - id: prove-lv-t
         run: |
