@@ -1,5 +1,5 @@
-env:
-  PERL5LIB: ${{ github.HOME }}/lib/perl5
+#env:
+  #  PERL5LIB: ${{ github.HOME }}/lib/perl5
 on:
   push:
     branches:
@@ -33,7 +33,7 @@ jobs:
           #export PERL5LIB=$PERL5LIB:$HOME/lib/perl5
           which cpanm
           cpanm --verbose --notest --force ExtUtils::MakeMaker
-          cpanm -l $HOME --installdeps --verbose --notest --force .
+          cpanm --installdeps --verbose --notest --force .
       - name: perl-dependencies
         run:  |
           #export PERL5LIB=$PERL5LIB:$HOME/lib/perl5
