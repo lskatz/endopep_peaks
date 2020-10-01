@@ -37,7 +37,7 @@ The spreadsheet will have a header row of
 
 * plate
 * sample
-* inferred\_type (version >= 3.4)
+* inferred\_type (version >= 3.5)
 * acquisition
 * A\_cleavage\_1
 * SN\_A\_cleavage\_1

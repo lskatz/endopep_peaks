@@ -16,7 +16,7 @@ use Spreadsheet::XLSX;
 #use Excel::Writer::XLSX;
 use Array::IntSpan;
 
-our $VERSION = '3.4.1';
+our $VERSION = '3.5.0';
 
 # Expected peaks per serotype
 my $peakRanges = Array::IntSpan->new();
@@ -79,7 +79,6 @@ sub main{
         my $sampleInfo = $$plateEntries{$sample};
         
         # How many acquisitions are there?
-        #my $numAcquisitions = scalar(@{ $$sampleInfo{$firstPeak} });
         my $numAcquisitions = 0;
         for my $peak(sort keys(%$sampleInfo)){
           my $thisPeakAcquisitionCount = scalar(@{ $$sampleInfo{$peak} });
@@ -88,12 +87,32 @@ sub main{
           }
         }
         
+        # Find the first acquisition's type and label it as the reference.
+        # If all acquisitions agree, then all good.
+        # If not, then label the type as "inconclusive"
+        my $inferredType = inferType($sampleInfo, 0, $settings);
+        my %allTypes = map{ $_=>1 } split(/,/, $inferredType);
+        my $is_inconclusive = 0;
+        for(my $acquisition=0; $acquisition < $numAcquisitions; $acquisition++){
+          my $acquisitionType = inferType($sampleInfo, $acquisition, $settings);
+          if($inferredType ne $acquisitionType){
+            $is_inconclusive = 1;
+            for my $type(split(",", $acquisitionType)){
+              $allTypes{$type}++;
+            }
+          }
+        }
+        # If inconclusive, rename the type as "inconclusive" and add
+        # on all possible types.
+        if($is_inconclusive){
+          my @uniqueType = sort{$a cmp $b} keys(%allTypes);
+          $inferredType = "inconclusive(".join(",",@uniqueType).")";
+        }
+        
         # the sample has multiple acquisitions in the data structure,
         # so there will be one row printed per acquisition.
         for(my $acquisition=0; $acquisition < $numAcquisitions; $acquisition++){
-          my $inferredTypeArr = inferType($sampleInfo, $settings);
-          my $inferredTypes   = join(",", sort @$inferredTypeArr);
-          print join("\t", $plate, $sample, $inferredTypes, ($acquisition+1));
+          print join("\t", $plate, $sample, $inferredType, ($acquisition+1));
           # Increment by two because the header has both the peak and peak_SN keys
           for(my $i=0;$i<@typingHeader;$i+=2){
             # Get the peaks hash (signal-to-noise and peak)
@@ -262,7 +281,7 @@ sub readRawSpreadsheet{
 # The settings on the Bruker only allow the program to call peaks if the S/N is >10, so everything we see included in the raw Excel spreadsheets should have S/N >10.
 # And yes, there could be multiple inferences.
 sub inferType{
-  my($peaks, $settings) = @_;
+  my($peaks, $acquisition, $settings) = @_;
 
   my %type;
 
@@ -270,37 +289,30 @@ sub inferType{
     next if($peak !~ /cleavage/i);
     # All acquisitions must agree with each other and so this array
     # of types will be checked for consistency.
-    my @acquisitionInferrence = ();
-    for my $peakInfo(@{ $$peaks{$peak} }){
-      # Results shouldn't even get to this point if Signal to noise is less
-      # than 10, but just to be sure.
-      next if($$peakInfo{SN} <= 10);
-      # Can't determine serotype if this peak doesn't even fall in the 
-      # right range for a serotype.
-      next if(!$$peakInfo{serotype});
-      
-      push(@acquisitionInferrence, $$peakInfo{serotype});
-      $type{ $$peakInfo{serotype} }++;
-    }
-    # If no serotypes were inferred with this set of peaks, then
-    # don't try to make an inferrence.
-    #next if(!@acquisitionInferrence);
+    my $peakInfo = $$peaks{$peak}[$acquisition];
 
-    # Check for consistency across all acquisitions.
-    #my $inferredType = shift(@acquisitionInferrence);
-    #for my $otherAcquisitionType(@acquisitionInferrence){
-    #  # Make the comparison case-insensitive just in case
-    #  if(lc($inferredType) ne lc($otherAcquisitionType)){
-    #    $inferredType = "inconclusive(".join(",",$inferredType,@acquisitionInferrence).")";
-    #    last;
-    #  }
-    #}
-
-    # Record the serotype
-    #$type{ $inferredType }++;
+    # If there isn't even a signal for this peak, skip.
+    next if(!$$peakInfo{SN});
+    
+    # Results shouldn't even get to this point if Signal to noise is less
+    # than 10, but just to be sure.
+    next if($$peakInfo{SN} <= 10);
+    # Can't determine serotype if this peak doesn't even fall in the 
+    # right range for a serotype.
+    next if(!$$peakInfo{serotype});
+    
+    $type{ $$peakInfo{serotype} }++;
   }
 
-  return [keys(%type)];
+  # Have _something_ if nothing was detected
+  if(!keys(%type)){
+    $type{"no-serotype-signal"}++;
+  }
+
+  my @typeArr = sort{$a cmp $b} keys(%type);
+
+  my $str = join(",", @typeArr);
+  return $str;
 }
 
 sub version{
@@ -317,3 +329,4 @@ sub usage{
 ";
   exit 0;
 }
+
