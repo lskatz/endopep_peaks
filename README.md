@@ -9,7 +9,7 @@ Simplifies a multitab Bruker spreadsheet into a single spreadsheet
     git clone https://github.com/lskatz/endopep_peaks.git
     cd endopep_peaks
     source scripts/environment.sh
-    cpanm -l ~ --installdeps .
+    cpanm -l . --installdeps .
     perl Makefile.PL
     make
 
