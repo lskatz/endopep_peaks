@@ -2,16 +2,22 @@
 
 use strict;
 use warnings;
-use lib './lib';
 use File::Basename qw/dirname basename/;
-use File::Which qw/which/;
 use Getopt::Long qw/GetOptions/;
 use Data::Dumper;
+
+# noncore modules
+use FindBin qw/$RealBin/;
+use lib "$RealBin/../lib/perl5";
+use File::Which qw/which/;
 
 use Test::More tests => 1;
 
 my $scriptDir = dirname $0;
 local $0 = basename $0;
+
+# Prioritize this scripts folder in the path
+# because we are testing this script in particular
 $ENV{PATH}="$scriptDir/../scripts:$ENV{PATH}";
 
 my $parseBruker = which("parseBruker.pl");
