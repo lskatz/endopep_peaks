@@ -260,7 +260,7 @@ sub readRawSpreadsheet{
           $$sampleInfo{$b}{row}||=0;
           $$sampleInfo{$a}{row} <=> $$sampleInfo{$b}{row}
         } values(%$sampleInfo);
-        for my $peak(@sortedPeakInfo){
+        for my $peak(sort @sortedPeakInfo){
           # Find which type this belongs to based on ranges of m/z
           my $fullNameType = $peakRanges->lookup($$peak{'m/z'});
           # If not found in the ranges, UNDEFINED
