@@ -158,12 +158,12 @@ sub readRawSpreadsheet{
   
   # https://metacpan.org/pod/Spreadsheet::XLSX
   my $excel = Spreadsheet::XLSX->new($spreadsheet);
-  # Must remove randomness
-  $$excel{Worksheet} = [sort {$$a{path} cmp $$b{path}} @{$$excel{Worksheet}}];
 
   my %peakInfo;
 
-  foreach my $sheet (@{$excel->{Worksheet}}){
+  # Must remove randomness
+  my @sheet = sort{$$a{path} cmp $$b{path}} @{$excel->{Worksheet}};
+  foreach my $sheet (@sheet){
     #printf("Sheet: %s\n", $sheet->{Name});
     my %tsv;
 
