@@ -113,7 +113,7 @@ sub main{
         # TODO: also see if other acquisitions have new subtypes
         # not found in the first.
         for my $subtype(@refSubtype){
-          for(my $j=1;$j<$$sampleInfo{numAcquisitions};$j++){
+          for (my $j=1;$j<$$sampleInfo{numAcquisitions};$j++){
             $$sampleInfo{serotypeInferrence}[$j]{$subtype} //= 0;
             if($$sampleInfo{serotypeInferrence}[$j]{$subtype} != 1){
               $numConflictingAcquisitions++;
@@ -250,7 +250,9 @@ sub readRawSpreadsheet{
   # Turn this into a 25+ column format with each peak info shown on each plate/sample combo line
   my %finalTsv;
   while(my($plate, $plateInfo) = each(%peakInfo)){
-    while(my($sampleAndSerotype, $sampleInfoArr) = each(%$plateInfo)){
+    my @sampleAndSrotype = sort keys(%$plateInfo);
+    for my $sampleAndSerotype(@sampleAndSrotype){
+      my $sampleInfoArr = $$plateInfo{$sampleAndSerotype};
       my($sample, $serotype) = split(/\-/, $sampleAndSerotype);
       next if(!$serotype);
       for my $sampleInfo(sort @$sampleInfoArr){
@@ -298,7 +300,9 @@ sub readRawSpreadsheet{
 
   # Keep the data structure stable by sorting
   while(my($plate, $plateInfo) = each(%finalTsv)){
-    while(my($sample, $sampleInfo) = each(%$plateInfo)){
+    my @sampleName = sort keys(%$plateInfo);
+    for my $sample(@sampleName){
+      my $sampleInfo = $$plateInfo{$sample};
       #$finalTsv{$plate}{$sample}{peaks} = 
       #  [sort {$$b{peak} <=> $$a{peak} || $$a{SN} <=> $$b{SN}}
       #    @{$finalTsv{$plate}{$sample}{peaks}}];
@@ -308,8 +312,13 @@ sub readRawSpreadsheet{
       
       # How many acquisitions were there for this sample?
       my $numAcquisitions = 0;
-      my @peakType = keys %{ $$sampleInfo{peaks} };
-      for my $peakType(sort @peakType){
+      my @peakType = sort keys %{ $$sampleInfo{peaks} };
+      for my $peakType(@peakType){
+
+        # Sort each peak by peak
+        $$plateInfo{$sample}{peaks}{$peakType} =
+          [sort {$$a{peak} <=> $$b{peak}}
+            @{ $$plateInfo{$sample}{peaks}{$peakType} }];
         # Number of acquisitions will be the lowest number seen so far
         # or the number of peaks found here for this peak type,
         # whichever is higher.
@@ -321,44 +330,6 @@ sub readRawSpreadsheet{
   #print Dumper \%finalTsv; exit 0;
 
   return \%finalTsv;
-}
-
-# A sample is positive for a serotype if at least one of the peaks for cleaved products of that serotype is present, with a S/N >10.
-# The settings on the Bruker only allow the program to call peaks if the S/N is >10, so everything we see included in the raw Excel spreadsheets should have S/N >10.
-# And yes, there could be multiple inferences.
-sub inferType{
-  my($peaks, $acquisition, $settings) = @_;
-
-  my %type;
-
-  for my $peak(sort keys(%$peaks)){
-    next if($peak !~ /cleavage/i);
-    # All acquisitions must agree with each other and so this array
-    # of types will be checked for consistency.
-    my $peakInfo = $$peaks{$peak}[$acquisition];
-
-    # If there isn't even a signal for this peak, skip.
-    next if(!$$peakInfo{SN});
-    
-    # Results shouldn't even get to this point if Signal to noise is less
-    # than 10, but just to be sure.
-    next if($$peakInfo{SN} <= 10);
-    # Can't determine serotype if this peak doesn't even fall in the 
-    # right range for a serotype.
-    next if(!$$peakInfo{serotype});
-    
-    $type{ $$peakInfo{serotype} }++;
-  }
-
-  # Have _something_ if nothing was detected
-  if(!keys(%type)){
-    $type{"no-serotype-signal"}++;
-  }
-
-  my @typeArr = sort{$a cmp $b} keys(%type);
-
-  my $str = join(",", @typeArr);
-  return $str;
 }
 
 sub version{
