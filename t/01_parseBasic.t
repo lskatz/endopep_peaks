@@ -60,6 +60,7 @@ sub readTsv{
     # The special key for these spreadsheets is plate + isolate
     # Use a triple tilde because it probably is not in any
     # sample name or plate name.
+    $F{acquisition}//=1; # $F{acquisition} removed v3.6
     my $key = join("~~~", $F{plate}, $F{sample}, $F{acquisition});
 
     $tsv{$key} = \%F;
