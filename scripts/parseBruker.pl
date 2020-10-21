@@ -253,7 +253,7 @@ sub readRawSpreadsheet{
     while(my($sampleAndSerotype, $sampleInfoArr) = each(%$plateInfo)){
       my($sample, $serotype) = split(/\-/, $sampleAndSerotype);
       next if(!$serotype);
-      for my $sampleInfo(@$sampleInfoArr){
+      for my $sampleInfo(sort @$sampleInfoArr){
         my @peak;
         my @sortedPeakInfo = sort {
           $$sampleInfo{$a}{row}||=0;
