@@ -6,6 +6,7 @@ use Data::Dumper;
 $Data::Dumper::Sortkeys = 1;
 use Getopt::Long;
 use File::Basename qw/basename/;
+use List::Util qw/max/;
 
 # Bring in perl libraries
 use FindBin qw/$RealBin/;
@@ -16,7 +17,7 @@ use Spreadsheet::XLSX;
 #use Excel::Writer::XLSX;
 use Array::IntSpan;
 
-our $VERSION = '3.5.0';
+our $VERSION = '3.6.0';
 
 # Expected peaks per serotype
 my $peakRanges = Array::IntSpan->new();
@@ -44,14 +45,31 @@ $peakRanges->set_range(3248.5,3261.5,"F5_cleavage_2");
 
 my @subtype      = qw(A B E F F5);
 my @cleavageType = qw(cleavage_1 cleavage_2 intact);
+my %peakMeaning;
 # Combine @subtype and @cleavageType into a header
 my @typingHeader;
 for my $type(@subtype){
   for my $cleavageType(@cleavageType){
-    push(@typingHeader, $type."_".$cleavageType);
-    push(@typingHeader, "SN_".$type."_".$cleavageType);
+    my $peakHeader = $type."_".$cleavageType;
+    my $snHeader   = "SN_".$type."_".$cleavageType;
+
+    push(@typingHeader, $peakHeader);
+    push(@typingHeader, $snHeader);
+
+    if($peakHeader =~ /_cleavage/i){
+      $peakMeaning{$peakHeader} = $type;
+    }
   }
 }
+
+# Default peak struct
+my $defaultPeakStruct = {
+  SN           => -1,
+  fullNameType => "",
+  peak         => -1,
+  serotypeLabel=> "",
+  type         => "",
+};
 
 local $0 = basename $0;
 sub logmsg{local $0=basename $0; print STDERR "$0: @_\n";}
@@ -64,7 +82,7 @@ sub main{
   usage() if($$settings{help} || !@ARGV);
 
   # print off the output header
-  print "plate\tsample\tinferred_type\tacquisition\t";
+  print "plate\tsample\tinferred_type\tnumAcquisitions\t";
   print join("\t",@typingHeader);
   print "\n";
 
@@ -75,54 +93,58 @@ sub main{
     for my $plate(sort keys(%$tsv)){
       my $plateEntries = $$tsv{$plate};
       # Loop through the samples but sort them alphabetically
-      for my $sample(sort {$a cmp $b} keys(%$plateEntries)){
+      my @sampleName = sort {$a cmp $b} keys(%$plateEntries);
+      for my $sample(@sampleName){
         my $sampleInfo = $$plateEntries{$sample};
         
-        # How many acquisitions are there?
-        my $numAcquisitions = 0;
-        for my $peak(sort keys(%$sampleInfo)){
-          my $thisPeakAcquisitionCount = scalar(@{ $$sampleInfo{$peak} });
-          if($thisPeakAcquisitionCount > $numAcquisitions){
-            $numAcquisitions = $thisPeakAcquisitionCount;
-          }
-        }
+        # Start off printing the row of information
+        print "$plate\t$sample";
+
+        # Get each acquisition's profile and see if they
+        # agree with the first acquisition.
+        my %acquisitionProfile;
+        my $refSubtype = $$sampleInfo{serotypeInferrence}[0];
+        my @refSubtype = sort{$a cmp $b} grep{$$refSubtype{$_}==1} keys(%$refSubtype);
+        my $inferredType = join(",",@refSubtype);
+        my $numConflictingAcquisitions = 0;
         
-        # Find the first acquisition's type and label it as the reference.
-        # If all acquisitions agree, then all good.
-        # If not, then label the type as "inconclusive"
-        my $inferredType = inferType($sampleInfo, 0, $settings);
-        my %allTypes = map{ $_=>1 } split(/,/, $inferredType);
-        my $is_inconclusive = 0;
-        for(my $acquisition=0; $acquisition < $numAcquisitions; $acquisition++){
-          my $acquisitionType = inferType($sampleInfo, $acquisition, $settings);
-          if($inferredType ne $acquisitionType){
-            $is_inconclusive = 1;
-            for my $type(split(",", $acquisitionType)){
-              $allTypes{$type}++;
+        # shortcut: just see if acquisitions after the first
+        # are in conflict.
+        # TODO: also see if other acquisitions have new subtypes
+        # not found in the first.
+        for my $subtype(@refSubtype){
+          for (my $j=1;$j<$$sampleInfo{numAcquisitions};$j++){
+            $$sampleInfo{serotypeInferrence}[$j]{$subtype} //= 0;
+            if($$sampleInfo{serotypeInferrence}[$j]{$subtype} != 1){
+              $numConflictingAcquisitions++;
             }
           }
         }
-        # If inconclusive, rename the type as "inconclusive" and add
-        # on all possible types.
-        if($is_inconclusive){
-          my @uniqueType = sort{$a cmp $b} keys(%allTypes);
-          $inferredType = "inconclusive(".join(",",@uniqueType).")";
+        if($numConflictingAcquisitions){
+          $inferredType.=" (inconclusive: $numConflictingAcquisitions conflicts)";
         }
-        
-        # the sample has multiple acquisitions in the data structure,
-        # so there will be one row printed per acquisition.
-        for(my $acquisition=0; $acquisition < $numAcquisitions; $acquisition++){
-          print join("\t", $plate, $sample, $inferredType, ($acquisition+1));
-          # Increment by two because the header has both the peak and peak_SN keys
-          for(my $i=0;$i<@typingHeader;$i+=2){
-            # Get the peaks hash (signal-to-noise and peak)
-            my $peakInfo = $$sampleInfo{$typingHeader[$i]}[$acquisition];
-            # Set a default for the hash if it's missing for this type
-            $peakInfo ||= {peak=>".", SN=>"."};
-            print "\t".$$peakInfo{peak}."\t".$$peakInfo{SN};
+        print "\t$inferredType";
+        print "\t".$$sampleInfo{numAcquisitions};
+
+        # The rest of the headers
+        for my $subtype(@subtype){
+          for my $cleavageType(@cleavageType){
+            my $peakHeader = $subtype."_".$cleavageType;
+            my $snHeader   = "SN_".$subtype."_".$cleavageType;
+
+            # For simplicity, just report the first acquisition
+            my $thisPeak = $$sampleInfo{peaks}{$peakHeader}[0] || $defaultPeakStruct;
+            print "\t"
+                . $$thisPeak{peak}
+                . "\t"
+                . $$thisPeak{SN}
+                . "";
           }
-          print "\n";
         }
+
+
+
+        print "\n";
       }
     }
 
@@ -136,12 +158,12 @@ sub readRawSpreadsheet{
   
   # https://metacpan.org/pod/Spreadsheet::XLSX
   my $excel = Spreadsheet::XLSX->new($spreadsheet);
-  # Must remove randomness
-  $$excel{Worksheet} = [sort {$$a{path} cmp $$b{path}} @{$$excel{Worksheet}}];
 
   my %peakInfo;
 
-  foreach my $sheet (@{$excel->{Worksheet}}){
+  # Must remove randomness
+  my @sheet = sort{$$a{path} cmp $$b{path}} @{$excel->{Worksheet}};
+  foreach my $sheet (@sheet){
     #printf("Sheet: %s\n", $sheet->{Name});
     my %tsv;
 
@@ -194,6 +216,8 @@ sub readRawSpreadsheet{
           while($col <= $sheet->{MaxCol}){
             $tsvValue[$col] = $sheet->{Cells}[$row][$col]{Val};
             $tsvValue[$col] //= "";
+            # whitespace trim
+            $tsvValue[$col] =~ s/^\s+|\s+$//g;
             $col++;
           }
           @tsvrow{@header} = @tsvValue;
@@ -226,93 +250,86 @@ sub readRawSpreadsheet{
   # Turn this into a 25+ column format with each peak info shown on each plate/sample combo line
   my %finalTsv;
   while(my($plate, $plateInfo) = each(%peakInfo)){
-    while(my($sampleAndSerotype, $sampleInfoArr) = each(%$plateInfo)){
+    my @sampleAndSrotype = sort keys(%$plateInfo);
+    for my $sampleAndSerotype(@sampleAndSrotype){
+      my $sampleInfoArr = $$plateInfo{$sampleAndSerotype};
       my($sample, $serotype) = split(/\-/, $sampleAndSerotype);
-      for my $sampleInfo(@$sampleInfoArr){
+      next if(!$serotype);
+      for my $sampleInfo(sort @$sampleInfoArr){
         my @peak;
         my @sortedPeakInfo = sort {
           $$sampleInfo{$a}{row}||=0;
           $$sampleInfo{$b}{row}||=0;
           $$sampleInfo{$a}{row} <=> $$sampleInfo{$b}{row}
         } values(%$sampleInfo);
-        for my $peak(@sortedPeakInfo){
+        for my $peak(sort @sortedPeakInfo){
           # Find which type this belongs to based on ranges of m/z
-          my $type = $peakRanges->lookup($$peak{'m/z'});
+          my $fullNameType = $peakRanges->lookup($$peak{'m/z'});
           # If not found in the ranges, UNDEFINED
-          next if(!defined($type));
-          $type||="UNDEFINED_PEAK";
+          next if(!defined($fullNameType));
+          $fullNameType||="UNDEFINED_PEAK";
+
+          my $type = $peakMeaning{$fullNameType} || "";
 
           # Record this peak under the right type
           my %info = (
             peak  => $$peak{'m/z'},
             SN    => $$peak{SN},
             type  => $type,
-            serotype => $serotype,
+            fullNameType => $fullNameType,
+            serotypeLabel => $serotype,
+            #serotype => $serotype,
           );
 
           # There are multiple acquisitions per sample per
           # plate and so each peak could have multiple
           # values; transform these data into an array.
           #$finalTsv{$plate}{$sample}{$type} = \%info;
-          push(@{ $finalTsv{$plate}{$sample}{$type} }, \%info);
+          push(@{ $finalTsv{$plate}{$sample}{peaks}{$fullNameType} }, \%info);
 
-          #TODO what to do if multiple undefined peaks? Do we care?
+          if($type && $fullNameType =~ /cleavage/i){
+            #push(@{ $finalTsv{$plate}{$sample}{serotypeInferrence} }, $type);
+
+            my $acquisitionNum = scalar(@{ $finalTsv{$plate}{$sample}{peaks}{$fullNameType} }) - 1;
+            $finalTsv{$plate}{$sample}{serotypeInferrence}[$acquisitionNum]{$type} = 1;
+          }
         }
       }
-      #die Dumper \%finalTsv;
     }
   }
 
   # Keep the data structure stable by sorting
   while(my($plate, $plateInfo) = each(%finalTsv)){
-    while(my($sample, $sampleInfo) = each(%$plateInfo)){
-      while(my($type, $serotypeInfo) = each(%$sampleInfo)){
-        $finalTsv{$plate}{$sample}{$type} =
-            [sort {$$b{peak} <=> $$a{peak} || $$a{SN} <=> $$b{SN}} @{ $finalTsv{$plate}{$sample}{$type} }];
+    my @sampleName = sort keys(%$plateInfo);
+    for my $sample(@sampleName){
+      my $sampleInfo = $$plateInfo{$sample};
+      #$finalTsv{$plate}{$sample}{peaks} = 
+      #  [sort {$$b{peak} <=> $$a{peak} || $$a{SN} <=> $$b{SN}}
+      #    @{$finalTsv{$plate}{$sample}{peaks}}];
+      #$finalTsv{$plate}{$sample}{acquisitions} =
+      #  [sort {$a cmp $b}
+      #    @{$finalTsv{$plate}{$sample}{acquisitions}}];
+      
+      # How many acquisitions were there for this sample?
+      my $numAcquisitions = 0;
+      my @peakType = sort keys %{ $$sampleInfo{peaks} };
+      for my $peakType(@peakType){
+
+        # Sort each peak by peak
+        $$plateInfo{$sample}{peaks}{$peakType} =
+          [sort {$$a{peak} <=> $$b{peak}}
+            @{ $$plateInfo{$sample}{peaks}{$peakType} }];
+        # Number of acquisitions will be the lowest number seen so far
+        # or the number of peaks found here for this peak type,
+        # whichever is higher.
+        $numAcquisitions = max($numAcquisitions, scalar(@{ $$sampleInfo{peaks}{$peakType} }));
       }
+      $$sampleInfo{numAcquisitions} = $numAcquisitions;
     }
   }
   #print Dumper \%finalTsv; exit 0;
 
   return \%finalTsv;
-}
-
-# A sample is positive for a serotype if at least one of the peaks for cleaved products of that serotype is present, with a S/N >10.
-# The settings on the Bruker only allow the program to call peaks if the S/N is >10, so everything we see included in the raw Excel spreadsheets should have S/N >10.
-# And yes, there could be multiple inferences.
-sub inferType{
-  my($peaks, $acquisition, $settings) = @_;
-
-  my %type;
-
-  for my $peak(sort keys(%$peaks)){
-    next if($peak !~ /cleavage/i);
-    # All acquisitions must agree with each other and so this array
-    # of types will be checked for consistency.
-    my $peakInfo = $$peaks{$peak}[$acquisition];
-
-    # If there isn't even a signal for this peak, skip.
-    next if(!$$peakInfo{SN});
-    
-    # Results shouldn't even get to this point if Signal to noise is less
-    # than 10, but just to be sure.
-    next if($$peakInfo{SN} <= 10);
-    # Can't determine serotype if this peak doesn't even fall in the 
-    # right range for a serotype.
-    next if(!$$peakInfo{serotype});
-    
-    $type{ $$peakInfo{serotype} }++;
-  }
-
-  # Have _something_ if nothing was detected
-  if(!keys(%type)){
-    $type{"no-serotype-signal"}++;
-  }
-
-  my @typeArr = sort{$a cmp $b} keys(%type);
-
-  my $str = join(",", @typeArr);
-  return $str;
 }
 
 sub version{

@@ -1,7 +1,6 @@
 on:
   push:
-    branches:
-      - master
+    branches: [master, dev]
 
 
 # perl: [ '5.32', '5.30', '5.28' ]

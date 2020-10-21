@@ -1,9 +1,4 @@
-plate	sample	inferred_type	acquisition	A_cleavage_1	SN_A_cleavage_1	A_cleavage_2	SN_A_cleavage_2	A_intact	SN_A_intact	B_cleavage_1	SN_B_cleavage_1	B_cleavage_2	SN_B_cleavage_2	B_intact	SN_B_intact	E_cleavage_1	SN_E_cleavage_1	E_cleavage_2	SN_E_cleavage_2	E_intact	SN_E_intact	F_cleavage_1	SN_F_cleavage_1	F_cleavage_2	SN_F_cleavage_2	F_intact	SN_F_intact	F5_cleavage_1	SN_F5_cleavage_1	F5_cleavage_2	SN_F5_cleavage_2	F5_intact	SN_F5_intact
-164245	559	E	1	.	.	.	.	.	.	1759.1057131642449	12.542086905563796	.	.	.	.	.	.	.	.	3617.7995565647561	336.57768106701928	.	.	3790.0239071979872	14.387202592524639	.	.	.	.	.	.	.	.
-164245	559	E	2	.	.	.	.	.	.	.	.	.	.	.	.	.	.	.	.	3617.0372159258532	208.96998353531964	.	.	3789.3160393280805	14.006960331131992	.	.	.	.	.	.	.	.
-164245	Calibrant	no-serotype-signal	1	.	.	.	.	.	.	1761.7760503224379	72.723501762842176	.	.	.	.	.	.	.	.	.	.	.	.	.	.	.	.	.	.	.	.	.	.
-164245	Calibrant	no-serotype-signal	2	.	.	.	.	.	.	1761.5303962669643	75.698443483938505	.	.	.	.	.	.	.	.	.	.	.	.	.	.	.	.	.	.	.	.	.	.
-164245	NC	E	1	.	.	.	.	.	.	.	.	.	.	.	.	.	.	.	.	3618.8305328372662	428.68481163049398	.	.	3789.9954621010584	21.309723188251112	.	.	.	.	.	.	.	.
-164245	NC	E	2	.	.	.	.	.	.	.	.	.	.	.	.	.	.	.	.	3618.6608491232437	576.38849570194395	.	.	3789.8143659760649	23.090827651030924	.	.	.	.	.	.	.	.
-164245	PC	E	1	.	.	.	.	.	.	.	.	.	.	.	.	.	.	2503.535651300474	191.32827014590683	3618.7407820571834	523.72343673145645	.	.	3790.1472566608127	19.987430604535884	.	.	.	.	.	.	.	.
-164245	PC	E	2	.	.	.	.	.	.	.	.	.	.	.	.	.	.	2503.5193714683205	150.88603690845031	3618.7390888808113	409.37321915603718	.	.	3789.6031043052885	19.452347584476353	.	.	.	.	.	.	.	.
+plate	sample	inferred_type	numAcquisitions	A_cleavage_1	SN_A_cleavage_1	A_cleavage_2	SN_A_cleavage_2	A_intact	SN_A_intact	B_cleavage_1	SN_B_cleavage_1	B_cleavage_2	SN_B_cleavage_2	B_intact	SN_B_intact	E_cleavage_1	SN_E_cleavage_1	E_cleavage_2	SN_E_cleavage_2	E_intact	SN_E_intact	F_cleavage_1	SN_F_cleavage_1	F_cleavage_2	SN_F_cleavage_2	F_intact	SN_F_intact	F5_cleavage_1	SN_F5_cleavage_1	F5_cleavage_2	SN_F5_cleavage_2	F5_intact	SN_F5_intact
+164245	559	B,F (inconclusive: 1 conflicts)	2	-1	-1	-1	-1	-1	-1	1759.1057131642449	12.542086905563796	-1	-1	-1	-1	-1	-1	-1	-1	3617.0372159258532	208.96998353531964	-1	-1	3789.3160393280805	14.006960331131992	-1	-1	-1	-1	-1	-1	-1	-1
+164245	NC	F	2	-1	-1	-1	-1	-1	-1	-1	-1	-1	-1	-1	-1	-1	-1	-1	-1	3618.6608491232437	576.38849570194395	-1	-1	3789.8143659760649	23.090827651030924	-1	-1	-1	-1	-1	-1	-1	-1
+164245	PC	E,F	2	-1	-1	-1	-1	-1	-1	-1	-1	-1	-1	-1	-1	-1	-1	2503.5193714683205	150.88603690845031	3618.7390888808113	409.37321915603718	-1	-1	3789.6031043052885	19.452347584476353	-1	-1	-1	-1	-1	-1	-1	-1
